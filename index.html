@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ocean Data Hub | NASA Earth Observations</title>
     <meta name="description" content="Interactive visualization of ocean changes using NASA satellite data">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;700;800&display=swap" rel="stylesheet">
     <script type="module" src="https://unpkg.com/@splinetool/viewer@1.10.74/build/spline-viewer.js"></script>
     
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -53,17 +57,27 @@
         /* Centered hero title placed above spline background */
         .hero-title {
             position: absolute;
-            top: 50%;
+            top: 2rem;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             z-index: 2;
             pointer-events: none;
             text-align: center;
             width: 100%;
             padding: 0 1rem;
         }
-        .hero-title h1 { font-size: 4rem; margin: 0; background: linear-gradient(135deg, #00D9FF, #00FFAA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-title h1 { 
+    /* font-family: 'Inter', sans-serif; */
+        font-family: 'Outfit', sans-serif;
 
+    font-size: 4.2rem; 
+    margin: 0; 
+    color: white;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 25px rgba(0, 217, 255, 0.4);
+    -webkit-text-fill-color: white;
+}
         .stars {
             position: absolute;
             width: 100%;
@@ -95,16 +109,13 @@
         .hero h1 {
             font-size: 4rem;
             margin-bottom: 1rem;
-            background: linear-gradient(135deg, #00D9FF, #00FFAA);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: white;
             animation: fadeInUp 1s ease;
         }
 
         .hero p {
             font-size: 1.5rem;
-            color: #A0E7FF;
+            color: #3f6876;
             margin-bottom: 3rem;
             animation: fadeInUp 1s ease 0.2s backwards;
         }
@@ -431,8 +442,8 @@
 
         <!-- Centered hero title -->
         <div class="hero-title">
-            <h1>🌊 Ocean Data Hub</h1>
-            <p style="color:#A0E7FF; margin-top:0.5rem; font-size:1.25rem;">Explore 50 Years of Ocean Changes Through NASA Satellite Data</p>
+            <h1>Deep Dive</h1>
+            <p style="color:rgb(230, 220, 220); margin-top:0.5rem; font-size:1.25rem; font-family: 'Manrope', sans-serif; font-weight: 400; text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);">Explore 50 Years of Ocean Changes Through NASA Satellite Data</p>
         </div>
 
         <div class="hero-content">
@@ -440,7 +451,7 @@
             <div class="categories">
                 <!-- Ocean Temperature -->
                 <div class="category-card" onclick="window.location.href='temperature-vr.html'">
-                    <span class="category-icon">🌡️</span>
+                    <span class="category-icon">🌡</span>
                     <h2>Ocean Temperature</h2>
                     <p>Visualize global sea surface temperature changes from 2000-2050. Track warming patterns and marine heatwaves.</p>
                     <button class="explore-btn">Explore Data →</button>
@@ -471,20 +482,23 @@
                 </div>
 
                 <!-- Sea Ice Extent -->
-                <div class="category-card" onclick="openGlobe('seaice')">
-                    <span class="category-icon">🧊</span>
-                    <h2>Sea Ice Extent</h2>
-                    <p>Witness the dramatic decline of Arctic and Antarctic sea ice coverage over time.</p>
-                    <button class="explore-btn">Explore Data →</button>
-                </div>
+<div class="category-card">
+    <span class="category-icon">🧊</span>
+    <h2>Lunar Gravity</h2>
+    <p>Lunar gravity is about one-sixth of Earth's, giving the Moon a gentle pull that lets objects weigh far less than they do on our planet.</p>
+    <a href="https://lunar-gvt-ar.vercel.app/" target="_blank">
+        <button class="explore-btn">VR - experiencing →</button>
+    </a>
+</div>
+
 
                 <!-- Coral Reefs -->
-                <div class="category-card" onclick="openGlobe('coral')">
+                <!-- <div class="category-card" onclick="openGlobe('coral')">
                     <span class="category-icon">🪸</span>
                     <h2>Coral Bleaching</h2>
                     <p>Document coral reef health decline and mass bleaching events across the globe.</p>
                     <button class="explore-btn">Explore Data →</button>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -529,7 +543,7 @@
         // Data configurations for each category
         const DATA_CONFIG = {
             temperature: {
-                title: "🌡️ Ocean Temperature Changes",
+                title: "🌡 Ocean Temperature Changes",
                 description: "Global sea surface temperature anomalies from NASA MODIS satellites",
                 years: {
                     2000: {
@@ -780,7 +794,7 @@
             // Update globe images
             document.querySelectorAll('.globe-image').forEach(img => {
                 img.classList.remove('active');
-                if (img.id === `globe-${year}`) {
+                if (img.id === globe-`${year}`) {
                     img.classList.add('active');
                 }
             });

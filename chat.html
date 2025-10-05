@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Sea Surface Temperature Chart</title>
+
+    <!-- ✅ Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: #111;
+        color: #fff;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      h2 {
+        margin-bottom: 10px;
+      }
+
+      canvas {
+        max-width: 90%;
+        max-height: 70vh;
+        background: #1a1a1a;
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .stats {
+        margin-top: 15px;
+        font-size: 16px;
+        color: #ccc;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h2>🌊 Sea Surface Temperature (°C) Over Time</h2>
+    <canvas id="sstChart"></canvas>
+
+    <div class="stats">
+      <p><strong>Median:</strong> 19.462°C |
+         <strong>Mean:</strong> 17.300°C |
+         <strong>Min:</strong> 0.000°C |
+         <strong>Max:</strong> 31.963°C |
+         <strong>Std Dev:</strong> 10.278°C</p>
+    </div>
+
+    <script>
+      const ctx = document.getElementById("sstChart").getContext("2d");
+
+      // Sample data from your image
+      const labels = [
+        "2008-11-12", "2010-12-07", "2012-09-25", "2014-12-31",
+        "2016-10-05", "2018-01-24", "2019-03-19", "2021-02-17",
+        "2022-09-11", "2024-12-18"
+      ];
+
+      const data = [18.7, 18.2, 16.8, 17.5, 15.9, 18.3, 17.1, 18.7, 17.9, 17.0];
+
+      // Create chart
+      const sstChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: "Sea Surface Temperature (L4, MUR)",
+              data: data,
+              borderColor: "#ffcc66",
+              backgroundColor: "rgba(255, 204, 102, 0.2)",
+              pointBackgroundColor: "#fff",
+              pointBorderColor: "#ffcc66",
+              pointRadius: 5,
+              fill: true,
+              tension: 0.3, // smooth curve
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: "#fff" },
+            },
+            tooltip: {
+              enabled: true,
+              mode: "nearest",
+              intersect: false,
+              backgroundColor: "#222",
+              borderColor: "#ffcc66",
+              borderWidth: 1,
+              titleColor: "#fff",
+              bodyColor: "#fff",
+              callbacks: {
+                label: (context) =>
+                  ` ${context.parsed.y.toFixed(2)} °C at ${context.label}`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: "#ccc" },
+              grid: { color: "rgba(255,255,255,0.1)" },
+            },
+            y: {
+              ticks: { color: "#ccc" },
+              grid: { color: "rgba(255,255,255,0.1)" },
+              title: {
+                display: true,
+                text: "Mean Temperature (°C)",
+                color: "#fff",
+              },
+            },
+          },
+          interaction: {
+            mode: "index",
+            intersect: false,
+          },
+        },
+      });
+    </script>
+  </body>
+</html>

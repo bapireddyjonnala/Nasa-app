@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ocean Currents VR | NASA Earth Observations</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
         #loading-screen {
@@ -59,10 +60,40 @@
             box-shadow: 0 6px 25px rgba(79, 195, 247, 0.8);
         }
         
+        #chart-panel {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(17, 17, 17, 0.95); padding: 20px; border-radius: 15px;
+            z-index: 150; pointer-events: auto; max-width: 90%; width: 850px;
+            box-shadow: 0 8px 30px rgba(79, 195, 247, 0.4); border: 2px solid #4FC3F7;
+            display: none;
+        }
+        #chart-panel.visible { display: block; }
+        #chart-panel h3 { margin: 0 0 15px 0; color: #4FC3F7; text-align: center; font-size: 20px; }
+        #currentsChart { width: 100%; height: 350px; }
+        
+        #chart-toggle {
+            position: fixed; bottom: 30px; right: 30px; z-index: 200; pointer-events: auto;
+            background: linear-gradient(135deg, #16213e 0%, #0a1a2e 100%);
+            color: #FFFFFF; border: 2px solid #4FC3F7; padding: 12px 25px;
+            font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 10px;
+            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(79, 195, 247, 0.3);
+        }
+        #chart-toggle:hover {
+            background: linear-gradient(135deg, #1e2a4a 0%, #0f1f3a 100%);
+            transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79, 195, 247, 0.5);
+        }
+        #chart-toggle.active {
+            background: linear-gradient(135deg, #4FC3F7 0%, #81D4FA 100%);
+            color: #0a1a2e; border-color: #FFFFFF;
+        }
+        
         @media (max-width: 768px) {
             #scene-info { top: 10px; left: 10px; right: 10px; max-width: none; padding: 15px; }
             #scene-info h2 { font-size: 22px; }
             .year-btn { padding: 10px 20px; font-size: 14px; min-width: 80px; }
+            #chart-panel { width: 95%; bottom: 120px; padding: 15px; }
+            #currentsChart { height: 250px; }
+            #chart-toggle { bottom: 20px; right: 20px; padding: 10px 20px; font-size: 14px; }
         }
     </style>
 </head>
@@ -94,19 +125,24 @@
         <a-entity id="earth-container" position="0 0 0">
             <a-sphere id="earth-2000" radius="3" position="0 0 0"
                 src="assets/textures/cu2000.jpg"
-                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="true"></a-sphere>
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="true"
+                rotation="0 0 0"></a-sphere>
             <a-sphere id="earth-2010" radius="3" position="0 0 0"
                 src="assets/textures/cu2010.jpg"
-                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
             <a-sphere id="earth-2020" radius="3" position="0 0 0"
                 src="assets/textures/cu2020.jpg"
-                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
             <a-sphere id="earth-2030" radius="3" position="0 0 0"
                 src="https://dummyimage.com/2048x1024/3498db/ffffff&text=2030+Currents+Altered"
-                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
             <a-sphere id="earth-2050" radius="3" position="0 0 0"
                 src="https://dummyimage.com/2048x1024/5dade2/ffffff&text=2050+Currents+Critical"
-                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
             <a-sphere id="atmosphere" radius="3.15" position="0 0 0"
                 material="shader: flat; color: #4fc3f7; opacity: 0.3; transparent: true; side: back"></a-sphere>
         </a-entity>
@@ -153,6 +189,13 @@
         <button class="year-btn" data-year="2050">2050</button>
     </div>
 
+    <button id="chart-toggle">📊 Show Chart</button>
+
+    <div id="chart-panel">
+        <h3>🌊 Sea Surface Currents (Zonal, US West Coast)</h3>
+        <div id="currentsChart"></div>
+    </div>
+
     <script>
         const CONFIG = {
             scenes: {
@@ -168,6 +211,7 @@
             constructor() {
                 this.currentYear = '2000';
                 this.earthSpheres = {};
+                this.chartVisible = false;
                 this.init();
             }
 
@@ -189,10 +233,77 @@
                 this.createStarField();
                 this.setupEventListeners();
                 this.setupRotation();
+                this.initializeChart();
                 
                 setTimeout(() => {
                     document.getElementById('loading-screen').classList.add('hidden');
                 }, 1000);
+            }
+
+            initializeChart() {
+                const dates = [
+                    '1998-04-04', '2000-09-08', '2003-02-13', '2005-07-20', '2007-12-25', '2011-01-19'
+                ];
+                const means = [
+                    -0.05, -0.04, -0.045, -0.048, -0.043, -0.047
+                ];
+                
+                const trace = {
+                    x: dates,
+                    y: means,
+                    mode: 'lines+markers',
+                    type: 'scatter',
+                    marker: { color: '#f5d96b', size: 10 },
+                    line: { color: '#f5d96b', width: 3 },
+                    hovertemplate: 'Date: %{x}<br>Mean: %{y:.3f} m/s<extra></extra>'
+                };
+                
+                const layout = {
+                    title: {
+                        text: 'Sea Surface Currents (GAFECC)',
+                        font: { color: '#4FC3F7', size: 18 }
+                    },
+                    paper_bgcolor: '#1a1a1a',
+                    plot_bgcolor: '#1a1a1a',
+                    font: { color: '#eee' },
+                    xaxis: { 
+                        title: 'Date',
+                        gridcolor: 'rgba(255,255,255,0.1)',
+                        color: '#ccc'
+                    },
+                    yaxis: { 
+                        title: 'Mean (m/s)',
+                        zeroline: false,
+                        gridcolor: 'rgba(255,255,255,0.1)',
+                        color: '#ccc'
+                    },
+                    margin: { l: 60, r: 30, t: 50, b: 50 },
+                    hovermode: 'closest'
+                };
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: false
+                };
+                
+                Plotly.newPlot('currentsChart', [trace], layout, config);
+
+                document.getElementById('chart-toggle').addEventListener('click', () => {
+                    this.chartVisible = !this.chartVisible;
+                    const panel = document.getElementById('chart-panel');
+                    const button = document.getElementById('chart-toggle');
+                    
+                    if (this.chartVisible) {
+                        panel.classList.add('visible');
+                        button.classList.add('active');
+                        button.textContent = '✕ Hide Chart';
+                        Plotly.Plots.resize('currentsChart');
+                    } else {
+                        panel.classList.remove('visible');
+                        button.classList.remove('active');
+                        button.textContent = '📊 Show Chart';
+                    }
+                });
             }
 
             createStarField() {
@@ -218,6 +329,14 @@
                 const container = document.getElementById('earth-container');
                 let isDragging = false, prevPos = {x: 0, y: 0}, rotation = {x: 0, y: 0};
                 
+                // Auto-rotation
+                setInterval(() => {
+                    if (!isDragging) {
+                        rotation.y += 0.2;
+                        container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
+                    }
+                }, 50);
+                
                 document.addEventListener('mousedown', (e) => {
                     isDragging = true;
                     prevPos = {x: e.clientX, y: e.clientY};
@@ -227,11 +346,31 @@
                     if (!isDragging) return;
                     rotation.y += (e.clientX - prevPos.x) * 0.5;
                     rotation.x -= (e.clientY - prevPos.y) * 0.5;
+                    rotation.x = Math.max(-90, Math.min(90, rotation.x));
                     container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
                     prevPos = {x: e.clientX, y: e.clientY};
                 });
 
                 document.addEventListener('mouseup', () => isDragging = false);
+                document.addEventListener('mouseleave', () => isDragging = false);
+                
+                // Touch support
+                document.addEventListener('touchstart', (e) => {
+                    isDragging = true;
+                    prevPos = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    rotation.y += (e.touches[0].clientX - prevPos.x) * 0.5;
+                    rotation.x -= (e.touches[0].clientY - prevPos.y) * 0.5;
+                    rotation.x = Math.max(-90, Math.min(90, rotation.x));
+                    container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
+                    prevPos = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+                });
+
+                document.addEventListener('touchend', () => isDragging = false);
             }
 
             switchYear(year) {
