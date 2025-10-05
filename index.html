@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Data Hub | NASA Earth Observations</title>
+    <meta name="description" content="Interactive visualization of ocean changes using NASA satellite data">
+    <script type="module" src="https://unpkg.com/@splinetool/viewer@1.10.74/build/spline-viewer.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a1128 0%, #001f54 50%, #0a1128 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Spline background (full hero) */
+        .spline-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none; /* don't block UI interactions */
+            opacity: 0.95;
+        }
+        .spline-bg spline-viewer {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Centered hero title placed above spline background */
+        .hero-title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            pointer-events: none;
+            text-align: center;
+            width: 100%;
+            padding: 0 1rem;
+        }
+        .hero-title h1 { font-size: 4rem; margin: 0; background: linear-gradient(135deg, #00D9FF, #00FFAA); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 3; /* above the spline background */
+            max-width: 1200px;
+            margin-top: 7.5rem; /* nudge cards down so title sits centered */
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #00D9FF, #00FFAA);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 1s ease;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            color: #A0E7FF;
+            margin-bottom: 3rem;
+            animation: fadeInUp 1s ease 0.2s backwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Data Categories Grid */
+        .categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 4rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .category-card {
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid rgba(0, 217, 255, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 255, 170, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .category-card:hover {
+            transform: translateY(-10px);
+            border-color: #00D9FF;
+            box-shadow: 0 10px 40px rgba(0, 217, 255, 0.4);
+        }
+
+        .category-card:hover::before {
+            opacity: 1;
+        }
+
+        .category-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .category-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #00D9FF;
+            position: relative;
+        }
+
+        .category-card p {
+            color: #B0D9E8;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .explore-btn {
+            background: linear-gradient(135deg, #00D9FF, #0077FF);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .explore-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0, 217, 255, 0.6);
+        }
+
+        /* Globe Viewer */
+        .globe-viewer {
+            display: none;
+            min-height: 100vh;
+            padding: 2rem;
+            background: linear-gradient(135deg, #0a1128 0%, #001f54 100%);
+        }
+
+        .globe-viewer.active {
+            display: block;
+        }
+
+        .viewer-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .viewer-header h1 {
+            font-size: 2.5rem;
+            color: #00D9FF;
+            margin-bottom: 0.5rem;
+        }
+
+        .viewer-header p {
+            color: #A0E7FF;
+            font-size: 1.2rem;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.9);
+            border: 2px solid #00D9FF;
+            color: #00D9FF;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .back-btn:hover {
+            background: #00D9FF;
+            color: #001133;
+            transform: translateX(-5px);
+        }
+
+        .globe-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 20, 40, 0.6);
+            border-radius: 20px;
+            padding: 2rem;
+            border: 2px solid rgba(0, 217, 255, 0.3);
+        }
+
+        .year-controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .year-btn {
+            background: rgba(0, 51, 102, 0.8);
+            border: 2px solid #00D9FF;
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .year-btn:hover {
+            background: rgba(0, 68, 136, 0.9);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 217, 255, 0.4);
+        }
+
+        .year-btn.active {
+            background: linear-gradient(135deg, #00D9FF, #00FFAA);
+            color: #001133;
+            border-color: white;
+        }
+
+        .globe-display {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+            margin: 0 auto;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid #00D9FF;
+        }
+
+        .globe-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .globe-image.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .data-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .data-card {
+            background: rgba(0, 30, 60, 0.8);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        .data-card h3 {
+            color: #00D9FF;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .data-card p {
+            color: #B0D9E8;
+            line-height: 1.5;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            color: #00FFAA;
+            font-weight: bold;
+            display: block;
+            margin: 0.5rem 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1.2rem;
+            }
+
+            .categories {
+                grid-template-columns: 1fr;
+                padding: 2rem 1rem;
+            }
+
+            .globe-display {
+                height: 400px;
+            }
+
+            .year-controls {
+                gap: 0.5rem;
+            }
+
+            .year-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+                min-width: 100px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #00D9FF;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 217, 255, 0.3);
+            border-top: 4px solid #00D9FF;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Info Banner */
+        .info-banner {
+            background: rgba(0, 100, 200, 0.2);
+            border-left: 4px solid #00D9FF;
+            padding: 1rem 1.5rem;
+            margin: 1rem 0;
+            border-radius: 5px;
+        }
+
+        .info-banner strong {
+            color: #00D9FF;
+        }
+    </style>
+</head>
+<body>
+    <!-- Home Page -->
+    <div id="home-page" class="hero">
+        <div class="stars" id="stars"></div>
+        <!-- Spline background (embedded viewer) -->
+        <div class="spline-bg" aria-hidden="true">
+            <spline-viewer url="https://prod.spline.design/bl4EL9EHVPUNk3O0/scene.splinecode"></spline-viewer>
+        </div>
+
+        <!-- Centered hero title -->
+        <div class="hero-title">
+            <h1>🌊 Ocean Data Hub</h1>
+            <p style="color:#A0E7FF; margin-top:0.5rem; font-size:1.25rem;">Explore 50 Years of Ocean Changes Through NASA Satellite Data</p>
+        </div>
+
+        <div class="hero-content">
+            
+            <div class="categories">
+                <!-- Ocean Temperature -->
+                <div class="category-card" onclick="window.location.href='temperature-vr.html'">
+                    <span class="category-icon">🌡️</span>
+                    <h2>Ocean Temperature</h2>
+                    <p>Visualize global sea surface temperature changes from 2000-2050. Track warming patterns and marine heatwaves.</p>
+                    <button class="explore-btn">Explore Data →</button>
+                </div>
+
+                <!-- Sea Level Rise -->
+                <div class="category-card" onclick="window.location.href='sealevel-vr.html'">
+                    <span class="category-icon">📈</span>
+                    <h2>Sea Level Rise</h2>
+                    <p>Monitor rising sea levels and their impact on coastal regions worldwide over five decades.</p>
+                    <button class="explore-btn">Explore Data →</button>
+                </div>
+
+                <!-- Ocean Currents -->
+                <div class="category-card" onclick="window.location.href='currents-vr.html'">
+                    <span class="category-icon">🌊</span>
+                    <h2>Ocean Currents</h2>
+                    <p>Observe changing ocean circulation patterns and their effects on global climate systems.</p>
+                    <button class="explore-btn">Explore Data →</button>
+                </div>
+
+                <!-- Tropical Cyclones -->
+                <div class="category-card" onclick="window.location.href='cyclones-vr.html'">
+                    <span class="category-icon">🌀</span>
+                    <h2>Tropical Cyclones</h2>
+                    <p>Track the frequency and intensity of tropical storms as ocean temperatures rise.</p>
+                    <button class="explore-btn">Explore Data →</button>
+                </div>
+
+                <!-- Sea Ice Extent -->
+                <div class="category-card" onclick="openGlobe('seaice')">
+                    <span class="category-icon">🧊</span>
+                    <h2>Sea Ice Extent</h2>
+                    <p>Witness the dramatic decline of Arctic and Antarctic sea ice coverage over time.</p>
+                    <button class="explore-btn">Explore Data →</button>
+                </div>
+
+                <!-- Coral Reefs -->
+                <div class="category-card" onclick="openGlobe('coral')">
+                    <span class="category-icon">🪸</span>
+                    <h2>Coral Bleaching</h2>
+                    <p>Document coral reef health decline and mass bleaching events across the globe.</p>
+                    <button class="explore-btn">Explore Data →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Globe Viewer Template -->
+    <div id="globe-viewer" class="globe-viewer">
+        <button class="back-btn" onclick="backToHome()">← Back to Home</button>
+        
+        <div class="viewer-header">
+            <h1 id="viewer-title">Ocean Data Visualization</h1>
+            <p id="viewer-description">Interactive time-series data from NASA satellites</p>
+        </div>
+
+        <div class="globe-container">
+            <div class="year-controls">
+                <button class="year-btn active" data-year="2000" onclick="switchYear('2000')">2000</button>
+                <button class="year-btn" data-year="2010" onclick="switchYear('2010')">2010</button>
+                <button class="year-btn" data-year="2020" onclick="switchYear('2020')">2020</button>
+                <button class="year-btn" data-year="2030" onclick="switchYear('2030')">2030</button>
+                <button class="year-btn" data-year="2050" onclick="switchYear('2050')">2050</button>
+            </div>
+
+            <div class="info-banner">
+                <strong>Note:</strong> Images are placeholders. Replace with actual NASA Worldview PNG/JPG exports.
+            </div>
+
+            <div class="globe-display">
+                <img id="globe-2000" class="globe-image active" src="https://dummyimage.com/800x600/001f54/00D9FF&text=2000+Baseline+Data" alt="Year 2000">
+                <img id="globe-2010" class="globe-image" src="https://dummyimage.com/800x600/002f64/00D9FF&text=2010+Data" alt="Year 2010">
+                <img id="globe-2020" class="globe-image" src="https://dummyimage.com/800x600/003f74/00D9FF&text=2020+Data" alt="Year 2020">
+                <img id="globe-2030" class="globe-image" src="https://dummyimage.com/800x600/004f84/00D9FF&text=2030+Projected" alt="Year 2030">
+                <img id="globe-2050" class="globe-image" src="https://dummyimage.com/800x600/005f94/00D9FF&text=2050+Projected" alt="Year 2050">
+            </div>
+
+            <div class="data-panel" id="data-panel">
+                <!-- Data cards will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data configurations for each category
+        const DATA_CONFIG = {
+            temperature: {
+                title: "🌡️ Ocean Temperature Changes",
+                description: "Global sea surface temperature anomalies from NASA MODIS satellites",
+                years: {
+                    2000: {
+                        stat: "Baseline",
+                        temp: "0.0°C",
+                        description: "Baseline conditions. Healthy ocean temperatures supporting diverse marine ecosystems."
+                    },
+                    2010: {
+                        stat: "+0.35°C",
+                        temp: "0.35°C above baseline",
+                        description: "Early warming detected. Pacific and Atlantic showing temperature increases."
+                    },
+                    2020: {
+                        stat: "+0.7°C",
+                        temp: "0.7°C above baseline",
+                        description: "Accelerated warming. Marine heatwaves becoming more frequent and intense."
+                    },
+                    2030: {
+                        stat: "+1.1°C",
+                        temp: "1.1°C above baseline (projected)",
+                        description: "Projected continued warming. Critical threshold approaching for many species."
+                    },
+                    2050: {
+                        stat: "+1.5°C",
+                        temp: "1.5°C above baseline (projected)",
+                        description: "Projected critical warming. Major ecosystem disruption likely without intervention."
+                    }
+                }
+            },
+            sealevel: {
+                title: "📈 Sea Level Rise",
+                description: "Global mean sea level changes from NASA satellite altimetry",
+                years: {
+                    2000: {
+                        stat: "Baseline",
+                        temp: "0 cm",
+                        description: "Reference level. Coastal ecosystems and infrastructure stable."
+                    },
+                    2010: {
+                        stat: "+3 cm",
+                        temp: "3 cm above baseline",
+                        description: "Measurable rise. Early impacts on low-lying coastal areas."
+                    },
+                    2020: {
+                        stat: "+9 cm",
+                        temp: "9 cm above baseline",
+                        description: "Accelerating rise. Increased coastal flooding during storms."
+                    },
+                    2030: {
+                        stat: "+20 cm",
+                        temp: "20 cm above baseline (projected)",
+                        description: "Significant rise projected. Many coastal areas vulnerable."
+                    },
+                    2050: {
+                        stat: "+50 cm",
+                        temp: "50 cm above baseline (projected)",
+                        description: "Critical rise projected. Major coastal cities at risk."
+                    }
+                }
+            },
+            currents: {
+                title: "🌊 Ocean Currents",
+                description: "Surface current patterns from NASA satellite observations",
+                years: {
+                    2000: {
+                        stat: "Stable",
+                        temp: "Normal circulation",
+                        description: "Healthy thermohaline circulation. Gulf Stream and other currents stable."
+                    },
+                    2010: {
+                        stat: "Weakening",
+                        temp: "5% decrease in Atlantic",
+                        description: "Early signs of circulation changes. Atlantic meridional overturning slowing."
+                    },
+                    2020: {
+                        stat: "Disrupted",
+                        temp: "15% decrease in Atlantic",
+                        description: "Notable circulation changes. Impacts on weather patterns observed."
+                    },
+                    2030: {
+                        stat: "Altered",
+                        temp: "25% decrease projected",
+                        description: "Significant changes projected. Major climate implications."
+                    },
+                    2050: {
+                        stat: "Critical",
+                        temp: "40% decrease projected",
+                        description: "Severe disruption projected. Global climate system impacts."
+                    }
+                }
+            },
+            cyclones: {
+                title: "🌀 Tropical Cyclones",
+                description: "Storm frequency and intensity from NASA observations",
+                years: {
+                    2000: {
+                        stat: "Baseline",
+                        temp: "~90 storms/year",
+                        description: "Historical average. Normal tropical cyclone activity."
+                    },
+                    2010: {
+                        stat: "Increasing",
+                        temp: "~95 storms/year",
+                        description: "Slight increase. More intense Category 4-5 storms."
+                    },
+                    2020: {
+                        stat: "Elevated",
+                        temp: "~100 storms/year",
+                        description: "Notable increase. Record-breaking seasons becoming common."
+                    },
+                    2030: {
+                        stat: "High",
+                        temp: "~110 storms/year projected",
+                        description: "Increased frequency projected. Stronger average intensity."
+                    },
+                    2050: {
+                        stat: "Extreme",
+                        temp: "~125 storms/year projected",
+                        description: "Significant increase projected. Category 5+ becoming more common."
+                    }
+                }
+            },
+            seaice: {
+                title: "🧊 Sea Ice Extent",
+                description: "Arctic and Antarctic ice coverage from NASA satellites",
+                years: {
+                    2000: {
+                        stat: "Baseline",
+                        temp: "100% coverage",
+                        description: "Healthy ice coverage. Arctic summer minimum stable."
+                    },
+                    2010: {
+                        stat: "Declining",
+                        temp: "87% of baseline",
+                        description: "13% decline per decade. Summer ice thinning rapidly."
+                    },
+                    2020: {
+                        stat: "Critical",
+                        temp: "74% of baseline",
+                        description: "26% total decline. Record minimum extent years."
+                    },
+                    2030: {
+                        stat: "Severe",
+                        temp: "60% of baseline projected",
+                        description: "40% decline projected. Near ice-free summers possible."
+                    },
+                    2050: {
+                        stat: "Ice-free",
+                        temp: "30% of baseline projected",
+                        description: "Ice-free Arctic summers projected. Major ecosystem loss."
+                    }
+                }
+            },
+            coral: {
+                title: "🪸 Coral Bleaching Events",
+                description: "Coral reef health from NASA ocean color satellites",
+                years: {
+                    2000: {
+                        stat: "Healthy",
+                        temp: "90% coverage",
+                        description: "Vibrant reefs. Occasional bleaching but good recovery."
+                    },
+                    2010: {
+                        stat: "Stressed",
+                        temp: "80% coverage",
+                        description: "Increasing bleaching events. Recovery times lengthening."
+                    },
+                    2020: {
+                        stat: "Bleaching",
+                        temp: "50% coverage",
+                        description: "Mass bleaching events. Great Barrier Reef severely impacted."
+                    },
+                    2030: {
+                        stat: "Critical",
+                        temp: "30% coverage projected",
+                        description: "Widespread mortality projected. Few refugia remaining."
+                    },
+                    2050: {
+                        stat: "Lost",
+                        temp: "15% coverage projected",
+                        description: "85% loss projected. Ecosystem collapse without action."
+                    }
+                }
+            }
+        };
+
+        let currentCategory = '';
+        let currentYear = '2000';
+
+        // Create star field
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.width = Math.random() * 3 + 'px';
+                star.style.height = star.style.width;
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Open globe viewer for specific category
+        function openGlobe(category) {
+            currentCategory = category;
+            currentYear = '2000';
+            
+            const config = DATA_CONFIG[category];
+            document.getElementById('viewer-title').textContent = config.title;
+            document.getElementById('viewer-description').textContent = config.description;
+            
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('globe-viewer').classList.add('active');
+            
+            updateDataPanel();
+            
+            // Reset year buttons
+            document.querySelectorAll('.year-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.year === '2000') {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Reset globe images
+            document.querySelectorAll('.globe-image').forEach(img => {
+                img.classList.remove('active');
+                if (img.id === 'globe-2000') {
+                    img.classList.add('active');
+                }
+            });
+        }
+
+        // Switch year
+        function switchYear(year) {
+            currentYear = year;
+            
+            // Update button states
+            document.querySelectorAll('.year-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.year === year) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update globe images
+            document.querySelectorAll('.globe-image').forEach(img => {
+                img.classList.remove('active');
+                if (img.id === `globe-${year}`) {
+                    img.classList.add('active');
+                }
+            });
+            
+            updateDataPanel();
+        }
+
+        // Update data panel
+        function updateDataPanel() {
+            const config = DATA_CONFIG[currentCategory];
+            const yearData = config.years[currentYear];
+            
+            const panel = document.getElementById('data-panel');
+            panel.innerHTML = `
+                <div class="data-card">
+                    <h3>Year</h3>
+                    <span class="stat-value">${currentYear}</span>
+                </div>
+                <div class="data-card">
+                    <h3>Status</h3>
+                    <span class="stat-value">${yearData.stat}</span>
+                    <p>${yearData.temp}</p>
+                </div>
+                <div class="data-card">
+                    <h3>Observations</h3>
+                    <p>${yearData.description}</p>
+                </div>
+                <div class="data-card">
+                    <h3>Data Source</h3>
+                    <p>NASA Worldview / MODIS / Satellite Altimetry</p>
+                </div>
+            `;
+        }
+
+        // Back to home
+        function backToHome() {
+            document.getElementById('globe-viewer').classList.remove('active');
+            document.getElementById('home-page').style.display = 'flex';
+        }
+
+        // Initialize
+        createStars();
+        
+        console.log('🌊 Ocean Data Hub Ready!');
+        console.log('Replace placeholder images with NASA Worldview exports');
+    </script>
+</body>
+</html>

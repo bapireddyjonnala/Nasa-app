@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tropical Cyclones VR | NASA Earth Observations</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1a0033 0%, #330066 100%);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; transition: opacity 0.5s;
+        }
+        #loading-screen.hidden { opacity: 0; pointer-events: none; }
+        .loading-content { text-align: center; color: #B388FF; }
+        .ocean-wave { font-size: 80px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-content h1 { font-size: 48px; margin: 20px 0; color: #B388FF; }
+        .loading-content p { font-size: 18px; color: #D1C4E9; }
+        
+        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .ui-panel { pointer-events: auto; background: rgba(26, 0, 51, 0.9); padding: 20px; border-radius: 10px; color: #FFFFFF; box-shadow: 0 4px 20px rgba(179, 136, 255, 0.3); }
+        
+        #scene-info { position: absolute; top: 20px; left: 20px; max-width: 400px; }
+        #scene-info h2 { margin: 0 0 10px 0; font-size: 28px; color: #B388FF; }
+        #scene-info p { margin: 0; font-size: 16px; line-height: 1.5; color: #D1C4E9; }
+        
+        #home-btn {
+            position: fixed; top: 20px; right: 20px; z-index: 200; pointer-events: auto;
+            background: linear-gradient(135deg, #003366 0%, #001133 100%);
+            color: #00D9FF; border: 2px solid #00D9FF; padding: 12px 25px;
+            font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px;
+            transition: all 0.3s ease; text-decoration: none; display: inline-block;
+        }
+        #home-btn:hover { background: #00D9FF; color: #001133; transform: translateY(-2px); }
+        
+        #year-controls {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 15px; z-index: 200; pointer-events: auto; flex-wrap: wrap;
+            justify-content: center; max-width: 90%;
+        }
+        .year-btn {
+            background: linear-gradient(135deg, #330066 0%, #1a0033 100%);
+            color: #FFFFFF; border: 2px solid #B388FF; padding: 15px 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 10px;
+            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(179, 136, 255, 0.3);
+            min-width: 100px;
+        }
+        .year-btn:hover {
+            background: linear-gradient(135deg, #440088 0%, #220044 100%);
+            border-color: #D1C4E9; transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(179, 136, 255, 0.5);
+        }
+        .year-btn.active {
+            background: linear-gradient(135deg, #B388FF 0%, #D1C4E9 100%);
+            color: #1a0033; border-color: #FFFFFF;
+            box-shadow: 0 6px 25px rgba(179, 136, 255, 0.8);
+        }
+        
+        @media (max-width: 768px) {
+            #scene-info { top: 10px; left: 10px; right: 10px; max-width: none; padding: 15px; }
+            #scene-info h2 { font-size: 22px; }
+            .year-btn { padding: 10px 20px; font-size: 14px; min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="ocean-wave">🌀</div>
+            <h1>Tropical Cyclones</h1>
+            <p>Loading NASA storm tracking data...</p>
+        </div>
+    </div>
+
+    <a-scene id="vr-scene" loading-screen="enabled: false" vr-mode-ui="enabled: true"
+        renderer="antialias: true; colorManagement: true;" background="color: #000000">
+        
+        <a-assets timeout="5000"></a-assets>
+
+        <a-entity id="camera-rig" position="0 0 0">
+            <a-camera id="main-camera" position="0 0 8" look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
+                <a-cursor id="gaze-cursor" color="#B388FF" opacity="0.9" scale="0.3 0.3 0.3"></a-cursor>
+            </a-camera>
+        </a-entity>
+
+        <a-entity id="stars">
+            <a-sphere radius="100" material="shader: flat; side: back; color: #000000; opacity: 1"></a-sphere>
+            <a-entity id="star-field" position="0 0 0"></a-entity>
+        </a-entity>
+
+        <a-entity id="earth-container" position="0 0 0">
+            <a-sphere id="earth-2000" radius="3" position="0 0 0"
+                src="assets/textures/cy2000.jpg"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="true"></a-sphere>
+            <a-sphere id="earth-2010" radius="3" position="0 0 0"
+                src="assets/textures/cy2010.jpg"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+            <a-sphere id="earth-2020" radius="3" position="0 0 0"
+                src="assets/textures/cy2020.jpg"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+            <a-sphere id="earth-2030" radius="3" position="0 0 0"
+                src="https://dummyimage.com/2048x1024/ab47bc/ffffff&text=2030+Cyclones+High"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+            <a-sphere id="earth-2050" radius="3" position="0 0 0"
+                src="https://dummyimage.com/2048x1024/ce93d8/ffffff&text=2050+Cyclones+Extreme"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"></a-sphere>
+            <a-sphere id="atmosphere" radius="3.15" position="0 0 0"
+                material="shader: flat; color: #b388ff; opacity: 0.3; transparent: true; side: back"></a-sphere>
+        </a-entity>
+
+        <a-sphere id="hotspot-atlantic" class="hotspot" position="-1.5 0.3 1.5" radius="0.15" color="#E91E63"
+            material="shader: flat; opacity: 0.8; transparent: true"
+            animation="property: scale; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate"
+            data-info="Atlantic hurricane basin"></a-sphere>
+
+        <a-sphere id="hotspot-pacific" class="hotspot" position="2.0 -0.5 1.5" radius="0.15" color="#9C27B0"
+            material="shader: flat; opacity: 0.8; transparent: true"
+            animation="property: scale; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate"
+            data-info="Western Pacific typhoon region"></a-sphere>
+
+        <a-entity id="data-panel-left" position="-5 0 0" rotation="0 30 0">
+            <a-plane color="#1a0033" width="2.5" height="3" material="shader: flat; opacity: 0.9; transparent: true; side: double"></a-plane>
+            <a-text id="data-text-left" value="YEAR 2000\n\nFrequency: Baseline\nStorms: ~90/year\n\nNASA Satellite\nStorm Tracking"
+                align="center" position="0 0 0.02" width="2.3" color="#B388FF" wrap-count="20"></a-text>
+        </a-entity>
+
+        <a-entity id="data-panel-right" position="5 0 0" rotation="0 -30 0">
+            <a-plane color="#1a0033" width="2.5" height="3" material="shader: flat; opacity: 0.9; transparent: true; side: double"></a-plane>
+            <a-text id="data-text-right" value="OBSERVATIONS\n\n• Normal frequency\n• Expected intensity\n• Historical average\n• Predictable patterns"
+                align="left" position="-1 0 0.02" width="2.3" color="#FFFFFF" wrap-count="22"></a-text>
+        </a-entity>
+
+        <a-entity light="type: ambient; color: #2a1a3a; intensity: 0.5"></a-entity>
+        <a-entity light="type: directional; color: #FFFFFF; intensity: 1.2" position="5 3 10"></a-entity>
+    </a-scene>
+
+    <div id="ui-overlay">
+        <a href="index.html" id="home-btn">← Home</a>
+        <div id="scene-info" class="ui-panel">
+            <h2 id="scene-title">🌀 Tropical Cyclones - Year 2000</h2>
+            <p id="scene-description">Historical average tropical cyclone activity. Normal storm frequency and intensity.</p>
+        </div>
+    </div>
+
+    <div id="year-controls">
+        <button class="year-btn active" data-year="2000">2000</button>
+        <button class="year-btn" data-year="2010">2010</button>
+        <button class="year-btn" data-year="2020">2020</button>
+        <button class="year-btn" data-year="2030">2030</button>
+        <button class="year-btn" data-year="2050">2050</button>
+    </div>
+
+    <script>
+        const CONFIG = {
+            scenes: {
+                '2000': { id: 'earth-2000', title: '🌀 Tropical Cyclones - Year 2000', description: 'Historical average tropical cyclone activity. Normal storm frequency and intensity.', dataLeft: 'YEAR 2000\n\nFrequency: Baseline\nStorms: ~90/year\n\nNASA Satellite\nStorm Tracking', dataRight: 'OBSERVATIONS\n\n• Normal frequency\n• Expected intensity\n• Historical average\n• Predictable patterns' },
+                '2010': { id: 'earth-2010', title: '🌀 Tropical Cyclones - Year 2010', description: 'Slight increase in activity. More intense Category 4-5 storms observed.', dataLeft: 'YEAR 2010\n\nFrequency: Increasing\nStorms: ~95/year\n\nNASA Satellite\nStorm Tracking', dataRight: 'OBSERVATIONS\n\n• Slight increase\n• Higher intensity\n• Cat 4-5 storms up\n• Warmer ocean temps' },
+                '2020': { id: 'earth-2020', title: '🌀 Tropical Cyclones - Year 2020', description: 'Notable increase in storm activity. Record-breaking seasons becoming common.', dataLeft: 'YEAR 2020\n\nFrequency: Elevated\nStorms: ~100/year\n\nNASA Satellite\nStorm Tracking', dataRight: 'OBSERVATIONS\n\n• Clear increase\n• Record seasons\n• Rapid intensification\n• Higher damages' },
+                '2030': { id: 'earth-2030', title: '🌀 Tropical Cyclones - Year 2030 (Projected)', description: 'Increased frequency projected. Stronger average storm intensity expected.', dataLeft: 'YEAR 2030\n\nFrequency: High\nStorms: ~110/year\n\nNASA PROJECTIONS\nStorm Tracking', dataRight: 'PROJECTIONS\n\n• 22% increase\n• Stronger storms\n• Longer seasons\n• Coastal risk rising' },
+                '2050': { id: 'earth-2050', title: '🌀 Tropical Cyclones - Year 2050 (Projected)', description: 'Significant increase projected. Category 5+ storms becoming more frequent.', dataLeft: 'YEAR 2050\n\nFrequency: Extreme\nStorms: ~125/year\n\nNASA PROJECTIONS\nStorm Tracking', dataRight: 'PROJECTIONS\n\n• 39% increase\n• Cat 5+ common\n• Infrastructure threat\n• Adaptation critical' }
+            }
+        };
+
+        class CyclonesController {
+            constructor() {
+                this.currentYear = '2000';
+                this.earthSpheres = {};
+                this.init();
+            }
+
+            init() {
+                const scene = document.querySelector('a-scene');
+                if (scene.hasLoaded) this.setup();
+                else scene.addEventListener('loaded', () => this.setup());
+            }
+
+            setup() {
+                this.earthSpheres = {
+                    '2000': document.getElementById('earth-2000'),
+                    '2010': document.getElementById('earth-2010'),
+                    '2020': document.getElementById('earth-2020'),
+                    '2030': document.getElementById('earth-2030'),
+                    '2050': document.getElementById('earth-2050')
+                };
+
+                this.createStarField();
+                this.setupEventListeners();
+                this.setupRotation();
+                
+                setTimeout(() => {
+                    document.getElementById('loading-screen').classList.add('hidden');
+                }, 1000);
+            }
+
+            createStarField() {
+                const starField = document.getElementById('star-field');
+                for (let i = 0; i < 200; i++) {
+                    const star = document.createElement('a-sphere');
+                    const radius = 95, theta = Math.random() * Math.PI * 2, phi = Math.random() * Math.PI;
+                    star.setAttribute('position', `${radius * Math.sin(phi) * Math.cos(theta)} ${radius * Math.sin(phi) * Math.sin(theta)} ${radius * Math.cos(phi)}`);
+                    star.setAttribute('radius', Math.random() * 0.05 + 0.02);
+                    star.setAttribute('color', '#FFFFFF');
+                    star.setAttribute('material', 'shader: flat');
+                    starField.appendChild(star);
+                }
+            }
+
+            setupEventListeners() {
+                document.querySelectorAll('.year-btn').forEach(btn => {
+                    btn.addEventListener('click', () => this.switchYear(btn.dataset.year));
+                });
+            }
+
+            setupRotation() {
+                const container = document.getElementById('earth-container');
+                let isDragging = false, prevPos = {x: 0, y: 0}, rotation = {x: 0, y: 0};
+                
+                document.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    prevPos = {x: e.clientX, y: e.clientY};
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    rotation.y += (e.clientX - prevPos.x) * 0.5;
+                    rotation.x -= (e.clientY - prevPos.y) * 0.5;
+                    container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
+                    prevPos = {x: e.clientX, y: e.clientY};
+                });
+
+                document.addEventListener('mouseup', () => isDragging = false);
+            }
+
+            switchYear(year) {
+                if (this.currentYear === year) return;
+                
+                Object.values(this.earthSpheres).forEach(sphere => sphere.setAttribute('visible', false));
+                this.earthSpheres[year].setAttribute('visible', true);
+
+                document.querySelectorAll('.year-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.year === year);
+                });
+
+                const config = CONFIG.scenes[year];
+                document.getElementById('scene-title').textContent = config.title;
+                document.getElementById('scene-description').textContent = config.description;
+                document.getElementById('data-text-left').setAttribute('value', config.dataLeft);
+                document.getElementById('data-text-right').setAttribute('value', config.dataRight);
+
+                this.currentYear = year;
+            }
+        }
+
+        new CyclonesController();
+    </script>
+</body>
+</html>

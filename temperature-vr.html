@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ocean Temperature VR | NASA Earth Observations</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
+        
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #331100 0%, #663300 100%);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; transition: opacity 0.5s;
+        }
+        #loading-screen.hidden { opacity: 0; pointer-events: none; }
+        .loading-content { text-align: center; color: #FF6B00; }
+        .ocean-wave { font-size: 80px; animation: wave 2s ease-in-out infinite; }
+        @keyframes wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+        .loading-content h1 { font-size: 48px; margin: 20px 0; color: #FF6B00; }
+        .loading-content p { font-size: 18px; color: #FFA726; }
+        
+        #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .ui-panel { pointer-events: auto; background: rgba(51, 17, 0, 0.9); padding: 20px; border-radius: 10px; color: #FFFFFF; box-shadow: 0 4px 20px rgba(255, 107, 0, 0.3); }
+        
+        #scene-info { position: absolute; top: 20px; left: 20px; max-width: 400px; }
+        #scene-info h2 { margin: 0 0 10px 0; font-size: 28px; color: #FF6B00; }
+        #scene-info p { margin: 0; font-size: 16px; line-height: 1.5; color: #FFA726; }
+        
+        #home-btn {
+            position: fixed; top: 20px; right: 20px; z-index: 200; pointer-events: auto;
+            background: linear-gradient(135deg, #003366 0%, #001133 100%);
+            color: #00D9FF; border: 2px solid #00D9FF; padding: 12px 25px;
+            font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 8px;
+            transition: all 0.3s ease; text-decoration: none; display: inline-block;
+        }
+        #home-btn:hover { background: #00D9FF; color: #001133; transform: translateY(-2px); }
+        
+        #year-controls {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 15px; z-index: 200; pointer-events: auto; flex-wrap: wrap;
+            justify-content: center; max-width: 90%;
+        }
+        .year-btn {
+            background: linear-gradient(135deg, #663300 0%, #331100 100%);
+            color: #FFFFFF; border: 2px solid #FF6B00; padding: 15px 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 10px;
+            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(255, 107, 0, 0.3);
+            min-width: 100px;
+        }
+        .year-btn:hover {
+            background: linear-gradient(135deg, #884400 0%, #442200 100%);
+            border-color: #FFA726; transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255, 107, 0, 0.5);
+        }
+        .year-btn.active {
+            background: linear-gradient(135deg, #FF6B00 0%, #FFA726 100%);
+            color: #331100; border-color: #FFFFFF;
+            box-shadow: 0 6px 25px rgba(255, 107, 0, 0.8);
+        }
+        
+        @media (max-width: 768px) {
+            #scene-info { top: 10px; left: 10px; right: 10px; max-width: none; padding: 15px; }
+            #scene-info h2 { font-size: 22px; }
+            .year-btn { padding: 10px 20px; font-size: 14px; min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="ocean-wave">🌡️</div>
+            <h1>Ocean Temperature</h1>
+            <p>Loading NASA satellite data...</p>
+        </div>
+    </div>
+
+    <a-scene id="vr-scene" loading-screen="enabled: false" vr-mode-ui="enabled: true"
+        renderer="antialias: true; colorManagement: true;" background="color: #000000">
+        
+        <a-assets timeout="5000"></a-assets>
+
+        <a-entity id="camera-rig" position="0 0 0">
+            <a-camera id="main-camera" position="0 0 8" look-controls="reverseMouseDrag: true" wasd-controls="enabled: false">
+                <a-cursor id="gaze-cursor" color="#FF6B00" opacity="0.9" scale="0.3 0.3 0.3"></a-cursor>
+            </a-camera>
+        </a-entity>
+
+        <a-entity id="stars">
+            <a-sphere radius="100" material="shader: flat; side: back; color: #000000; opacity: 1"></a-sphere>
+            <a-entity id="star-field" position="0 0 0"></a-entity>
+        </a-entity>
+
+        <a-entity id="earth-container" position="0 0 0">
+            <a-sphere id="earth-2000" radius="3" position="0 0 0"
+                src="assets/textures/temp2000.jpg"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="true"
+                rotation="0 0 0"></a-sphere>
+            <a-sphere id="earth-2010" radius="3" position="0 0 0"
+                src="assets/textures/temp2010.jpg"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
+            <a-sphere id="earth-2020" radius="3" position="0 0 0"
+                src="assets/textures/temp2020.jpg"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
+            <a-sphere id="earth-2030" radius="3" position="0 0 0"
+                src="https://dummyimage.com/2048x1024/4a7daa/ffffff&text=2030+Ocean+Temp+%2B1.1C"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
+            <a-sphere id="earth-2050" radius="3" position="0 0 0"
+                src="https://dummyimage.com/2048x1024/4a7daa/ffffff&text=2030+Ocean+Temp+%2B1.1C"
+                material="shader: standard; roughness: 0.8; metalness: 0.2" visible="false"
+                rotation="0 0 0"></a-sphere>
+            <a-sphere id="atmosphere" radius="3.15" position="0 0 0"
+                material="shader: flat; color: #ff6b00; opacity: 0.3; transparent: true; side: back"></a-sphere>
+        </a-entity>
+
+        <a-sphere id="hotspot-pacific" class="hotspot" position="-2.5 0 1.5" radius="0.15" color="#FF0000"
+            material="shader: flat; opacity: 0.8; transparent: true"
+            animation="property: scale; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate"
+            data-info="Pacific Ocean warming hotspot"></a-sphere>
+
+        <a-sphere id="hotspot-atlantic" class="hotspot" position="2.0 0.5 1.5" radius="0.15" color="#FF6B00"
+            material="shader: flat; opacity: 0.8; transparent: true"
+            animation="property: scale; to: 1.3 1.3 1.3; dur: 1000; loop: true; dir: alternate"
+            data-info="Atlantic Ocean warming hotspot"></a-sphere>
+
+        <a-entity id="data-panel-left" position="-5 0 0" rotation="0 30 0">
+            <a-plane color="#331100" width="2.5" height="3" material="shader: flat; opacity: 0.9; transparent: true; side: double"></a-plane>
+            <a-text id="data-text-left" value="YEAR 2000\n\nTemp: Baseline\nAnomaly: 0.0°C\n\nNASA MODIS\nSea Surface Temp"
+                align="center" position="0 0 0.02" width="2.3" color="#FF6B00" wrap-count="20"></a-text>
+        </a-entity>
+
+        <a-entity id="data-panel-right" position="5 0 0" rotation="0 -30 0">
+            <a-plane color="#331100" width="2.5" height="3" material="shader: flat; opacity: 0.9; transparent: true; side: double"></a-plane>
+            <a-text id="data-text-right" value="OBSERVATIONS\n\n• Baseline conditions\n• Healthy temperatures\n• Stable patterns\n• Normal circulation"
+                align="left" position="-1 0 0.02" width="2.3" color="#FFFFFF" wrap-count="22"></a-text>
+        </a-entity>
+
+        <a-entity light="type: ambient; color: #442200; intensity: 0.5"></a-entity>
+        <a-entity light="type: directional; color: #FFFFFF; intensity: 1.2" position="5 3 10"></a-entity>
+    </a-scene>
+
+    <div id="ui-overlay">
+        <a href="index.html" id="home-btn">← Home</a>
+        <div id="scene-info" class="ui-panel">
+            <h2 id="scene-title">🌡️ Ocean Temperature - Year 2000</h2>
+            <p id="scene-description">Baseline sea surface temperatures. Healthy thermal patterns supporting marine ecosystems.</p>
+        </div>
+    </div>
+
+    <div id="year-controls">
+        <button class="year-btn active" data-year="2000">2000</button>
+        <button class="year-btn" data-year="2010">2010</button>
+        <button class="year-btn" data-year="2020">2020</button>
+        <button class="year-btn" data-year="2030">2030</button>
+        <button class="year-btn" data-year="2050">2050</button>
+    </div>
+
+    <script>
+        const CONFIG = {
+            scenes: {
+                '2000': { id: 'earth-2000', title: '🌡️ Ocean Temperature - Year 2000', description: 'Baseline sea surface temperatures. Healthy thermal patterns supporting marine ecosystems.', dataLeft: 'YEAR 2000\n\nTemp: Baseline\nAnomaly: 0.0°C\n\nNASA MODIS\nSea Surface Temp', dataRight: 'OBSERVATIONS\n\n• Baseline conditions\n• Healthy temperatures\n• Stable patterns\n• Normal circulation' },
+                '2010': { id: 'earth-2010', title: '🌡️ Ocean Temperature - Year 2010', description: 'Early warming signals detected. Temperature anomalies increasing in tropical regions.', dataLeft: 'YEAR 2010\n\nTemp: +0.35°C\nAnomaly: +0.35°C\n\nNASA MODIS\nSea Surface Temp', dataRight: 'OBSERVATIONS\n\n• Warming detected\n• Pacific heating up\n• Marine heatwaves\n• Coral stress begins' },
+                '2020': { id: 'earth-2020', title: '🌡️ Ocean Temperature - Year 2020', description: 'Accelerated warming. Marine heatwaves becoming frequent and intense worldwide.', dataLeft: 'YEAR 2020\n\nTemp: +0.7°C\nAnomaly: +0.7°C\n\nNASA MODIS\nSea Surface Temp', dataRight: 'OBSERVATIONS\n\n• Rapid warming\n• Record heatwaves\n• Ecosystem stress\n• Species migration' },
+                '2030': { id: 'earth-2030', title: '🌡️ Ocean Temperature - Year 2030 (Projected)', description: 'Projected continued warming. Critical thresholds approaching for many marine species.', dataLeft: 'YEAR 2030\n\nTemp: +1.1°C\nAnomaly: +1.1°C\n\nNASA PROJECTIONS\nSea Surface Temp', dataRight: 'PROJECTIONS\n\n• Accelerating warming\n• Persistent heatwaves\n• Major ecosystem shifts\n• Coral decline' },
+                '2050': { id: 'earth-2050', title: '🌡️ Ocean Temperature - Year 2050 (Projected)', description: 'Critical warming projected. Major disruption to marine ecosystems without intervention.', dataLeft: 'YEAR 2050\n\nTemp: +1.5°C\nAnomaly: +1.5°C\n\nNASA PROJECTIONS\nSea Surface Temp', dataRight: 'PROJECTIONS\n\n• Critical warming\n• Ecosystem collapse\n• Mass die-offs\n• Action needed now' }
+            }
+        };
+
+        class TemperatureController {
+            constructor() {
+                this.currentYear = '2000';
+                this.earthSpheres = {};
+                this.init();
+            }
+
+            init() {
+                const scene = document.querySelector('a-scene');
+                if (scene.hasLoaded) this.setup();
+                else scene.addEventListener('loaded', () => this.setup());
+            }
+
+            setup() {
+                this.earthSpheres = {
+                    '2000': document.getElementById('earth-2000'),
+                    '2010': document.getElementById('earth-2010'),
+                    '2020': document.getElementById('earth-2020'),
+                    '2030': document.getElementById('earth-2030'),
+                    '2050': document.getElementById('earth-2050')
+                };
+
+                this.createStarField();
+                this.setupEventListeners();
+                this.setupRotation();
+                
+                setTimeout(() => {
+                    document.getElementById('loading-screen').classList.add('hidden');
+                }, 1000);
+            }
+
+            createStarField() {
+                const starField = document.getElementById('star-field');
+                for (let i = 0; i < 200; i++) {
+                    const star = document.createElement('a-sphere');
+                    const radius = 95, theta = Math.random() * Math.PI * 2, phi = Math.random() * Math.PI;
+                    star.setAttribute('position', `${radius * Math.sin(phi) * Math.cos(theta)} ${radius * Math.sin(phi) * Math.sin(theta)} ${radius * Math.cos(phi)}`);
+                    star.setAttribute('radius', Math.random() * 0.05 + 0.02);
+                    star.setAttribute('color', '#FFFFFF');
+                    star.setAttribute('material', 'shader: flat');
+                    starField.appendChild(star);
+                }
+            }
+
+            setupEventListeners() {
+                document.querySelectorAll('.year-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const year = btn.dataset.year;
+                        this.switchYear(year);
+                    });
+                });
+            }
+
+            setupRotation() {
+                const container = document.getElementById('earth-container');
+                let isDragging = false, prevPos = {x: 0, y: 0}, rotation = {x: 0, y: 0};
+                
+                // Auto-rotation
+                setInterval(() => {
+                    if (!isDragging) {
+                        rotation.y += 0.2;
+                        container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
+                    }
+                }, 50);
+                
+                document.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    prevPos = {x: e.clientX, y: e.clientY};
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    rotation.y += (e.clientX - prevPos.x) * 0.5;
+                    rotation.x -= (e.clientY - prevPos.y) * 0.5;
+                    rotation.x = Math.max(-90, Math.min(90, rotation.x)); // Limit vertical rotation
+                    container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
+                    prevPos = {x: e.clientX, y: e.clientY};
+                });
+
+                document.addEventListener('mouseup', () => isDragging = false);
+                document.addEventListener('mouseleave', () => isDragging = false);
+                
+                // Touch support
+                document.addEventListener('touchstart', (e) => {
+                    isDragging = true;
+                    prevPos = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    rotation.y += (e.touches[0].clientX - prevPos.x) * 0.5;
+                    rotation.x -= (e.touches[0].clientY - prevPos.y) * 0.5;
+                    rotation.x = Math.max(-90, Math.min(90, rotation.x));
+                    container.setAttribute('rotation', `${rotation.x} ${rotation.y} 0`);
+                    prevPos = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+                });
+
+                document.addEventListener('touchend', () => isDragging = false);
+            }
+
+            switchYear(year) {
+                if (this.currentYear === year) return;
+                
+                Object.values(this.earthSpheres).forEach(sphere => sphere.setAttribute('visible', false));
+                this.earthSpheres[year].setAttribute('visible', true);
+
+                document.querySelectorAll('.year-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.year === year);
+                });
+
+                const config = CONFIG.scenes[year];
+                document.getElementById('scene-title').textContent = config.title;
+                document.getElementById('scene-description').textContent = config.description;
+                document.getElementById('data-text-left').setAttribute('value', config.dataLeft);
+                document.getElementById('data-text-right').setAttribute('value', config.dataRight);
+
+                this.currentYear = year;
+            }
+        }
+
+        new TemperatureController();
+    </script>
+</body>
+</html>
